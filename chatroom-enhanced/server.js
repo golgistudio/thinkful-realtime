@@ -15,23 +15,28 @@ io.on('connection', function (socket) {
 
     var nameAdded = false
 
+    // Register a new user and let everyone know who has joined
     socket.on('new user', function (name) {
         if (nameAdded) return;
 
         socket.username = name;
         ++userCount;
         nameAdded = true;
+
+        // Save this user along with their socket connection
         userList[name] = socket
+
+        var dateJoined = new Date(Date.now());
 
         var broadcastMessage = {
             name: socket.username,
             userCount: userCount,
-            date: new Date(Date.now())
+            date: dateJoined.toString()
         }
+
+        // Send to the user and everyone else a notice who joined.
         socket.emit('user joined', broadcastMessage);
         socket.broadcast.emit('user joined', broadcastMessage);
-
-        console.log(socket.username + ' joined the discussion');
 
         var userNamesList = []
 
@@ -44,57 +49,71 @@ io.on('connection', function (socket) {
             userCount: userCount
         }
 
+        // Broadcast the list of all user's online
         socket.emit('user list', userListMessage);
         socket.broadcast.emit('user list', userListMessage);
 
-        console.log('user list: ' +  userListMessage)
-
     });
 
+    // Send the message to the sender and everyone else.
     socket.on('message', function(messagePacket) {
-        console.log(messagePacket)
-        console.log(nameAdded)
+
         if (nameAdded) {
+            var dateJoined = new Date(Date.now());
             var broadcastMessage = {
                 sender: socket.username,
                 contents: messagePacket.contents,
-                date: messagePacket.date
+                date: dateJoined.toString()
             }
-            console.log('Received message:', broadcastMessage);
 
             socket.emit('message', broadcastMessage);
             socket.broadcast.emit('message', broadcastMessage);
         }
     });
 
-    socket.on('private message', function(messagePacket) {
+    // Handle typing message
+    socket.on('typing message', function(messagePacket) {
+
         if (nameAdded) {
             var broadcastMessage = {
-                sender: socket.username,
-                contents: messagePacket.contents + ' sent to "' + messagePacket.recipient + '"',
-                date: messagePacket.date
+                sender: socket.username
             }
-            console.log('Received private message:', broadcastMessage);
 
-            socket.emit('message', broadcastMessage);
+            socket.broadcast.emit('typing message', broadcastMessage);
+        }
+    });
 
+    // Handle stopped typing message
+    socket.on('stopped typing', function(messagePacket) {
+
+        if (nameAdded) {
+            var broadcastMessage = {
+                sender: socket.username
+            }
+
+            socket.broadcast.emit('stopped typing', broadcastMessage);
+        }
+    });
+
+    // Handle private message
+    socket.on('private message', function(messagePacket) {
+        if (nameAdded) {
+            var dateJoined = new Date(Date.now());
             var privateMessage = {
                 sender: socket.username,
-                contents: 'private message: ' + messagePacket.contents,
-                date: messagePacket.date
+                contents: messagePacket.contents,
+                date: dateJoined.toString(),
+                recipient: messagePacket.recipient
             }
+
+            // Respond to the sender
+            socket.emit('private-message', privateMessage);
+
+            // Get the receiver of the message and send it
             var toSocket = userList[messagePacket.recipient]
 
-            for (var i in userList) {
-                console.log('"' + i  + '"')
-                if (i === messagePacket.recipient) {
-                    console.log("it is there")
-                }
-            }
-
             if (toSocket) {
-                console.log("Found")
-                toSocket.emit('message', privateMessage)
+                toSocket.emit('private-message', privateMessage)
             }
         }
     });
@@ -105,18 +124,19 @@ io.on('connection', function (socket) {
             --userCount;
             nameAdded = false;
 
+            var dateJoined = new Date(Date.now());
+
             // echo globally that this client has left
             var disconnectMessage = {
                 name: socket.username,
                 userCount: userCount,
-                date: new Date(Date.now())
+                date: dateJoined.toString()
             }
             socket.broadcast.emit('user left', disconnectMessage);
 
             for (var index in userList) {
 
                 if (index === socket.username) {
-                    console.log('left - ' + index)
                     delete userList[index]
                 }
             }
@@ -132,8 +152,6 @@ io.on('connection', function (socket) {
             }
 
             socket.broadcast.emit('user list', userListMessage);
-
-            console.log('user list: ' +  userListMessage)
         }
     });
 });

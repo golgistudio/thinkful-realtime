@@ -93,8 +93,22 @@ body {
 *
 */
 
+.private-message-title {
+    background-color: khaki;
+    border: solid khaki 1px;
+}
+
 #messages {
     font-family: Arial;
+}
+
+.update {
+    color: #2f4f4f;
+}
+
+#notifications {
+    margin: 5px;
+    min-height: 2em;
 }
 
 .date {
@@ -103,6 +117,7 @@ body {
 
 .message {
     font-size: larger;
+    padding-left: 10px;
 }
 
 .name {
